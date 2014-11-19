@@ -192,12 +192,12 @@ class OMAP:
 
 if __name__ == '__main__':
     assert len(sys.argv) == 3, "usage: usbboot 2ndstage.bin 3rdstage.bin"
-    print("waiting for omap44 device")
+    print("Waiting for omap44 device. Make sure you start with the battery out.")
     omap = OMAP(0, 1)
     
     # do initial header connect (is this necessary? does the board *expect* this?)
-    ASIC_ID = omap.id()
-    print("ASIC_ID:")
-    print(" ".join(hex(e) for e in ASIC_ID))
+    #ASIC_ID = omap.id()
+    #print("ASIC_ID:")
+    #print(" ".join(hex(e) for e in ASIC_ID))
     
     omap.boot(sys.argv[1], sys.argv[2])
