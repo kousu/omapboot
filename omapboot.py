@@ -5,7 +5,9 @@ omap44xx USB pre-bootloader loader.
 See README.md for usage.
 
 TODO:
+* [ ] Parse the ASIC ID and pretty-print it.
 * [ ] Loading is still flakey: rare occasions give I/O errors for no reason.
+  * [ ] Is there any way to contain the OMAP protocol in a class separate from the verrry useful interactive prints?
 * [ ] Factoring (of course)
 * [ ] Look up the USB MTU and set it as a default value on ugen.read(len=)
 * [ ] Tests
@@ -13,7 +15,6 @@ TODO:
   * [ ] how signing works
   * [ ] photos to go with my instructions
   * [ ] Collect a list of "good" boot images and/or instructions on how to build them
-
 """
 
 __author__ = "Nick Guenther"
@@ -36,29 +37,14 @@ class bsd_ugen_bulk:
     USB_SET_SHORT_XFER = 0x80045571 
     USB_SET_TIMEOUT = 0x80045572
 
-    def __init__(self, device, endpoint, block=True):
+    def __init__(self, device, endpoint):
         """
         TODO: poll ugens for their vendor:device id so that the API can be "open such and such device"
         """
         # rewrite (device: USB int id, endpoint: USB int id) to (device: unix device)
         device = "/dev/ugen%d.%02d" % (device, endpoint)
-
-        # ugen(4) provides an almost complete implementation is USB, but only per-device
-        # I don't have the ability to register an event handler for "plug in this specific vendor:device pair"
-        # 
-        # So I'm stuck with polling:
-        while True:
-            try:
-                self._dev = open(device, "wb+", 0)
-                break
-            except OSError:         # TODO: there are corner cases, like negative endpoints, that fall through the cracks in this liberal slurp
-                # this should really only consider "device not configured" a 'pass', and everything else an error
-                if block:
-                    pass
-                else:
-                    raise
-            time.sleep(0.1)
         
+        self._dev = open(device, "wb+", 0)
         self._setShortTransfer()
     
     def read(self, len):
@@ -148,16 +134,30 @@ class OMAP4:
 
     def __init__(self, block=True):
         """
-
+        
+        block: whether to fail if the device is not available, or wait for it to become available.
         """
         #TODO: get (device, endpoint) from querying the OS's USB stack for (VENDOR, PRODUCT)
         device, endpoint = 0, 1
+        
+        if block:
+            # really, this should happen above when we *query* for the device
+            # but querying is, at best, an expensive poll under ugen(4)
+            # So I'm stuck with polling:
+            while True:
+                try:
+                    usb_bulk(device, endpoint).close()
+                    break
+                except OSError:
+                    pass
+                time.sleep(0.1)
         
         # stash the USB address for boot()'s use
         # we assume that the same device won't be replugged during the duration of this program 
         self._addr = device, endpoint
         
         # open the USB device
+        
         self._dev = usb_bulk(device, endpoint)
         
     def id(self):
@@ -180,26 +180,41 @@ class OMAP4:
         
         closes the USB device when done, since booting means replacing what this class is designed to talk to
         """
+        
+        # upload 2nd stage (x-loader) via the 1st stage
         self._dev.write(self.BOOT)
+        print("Uploading x-loader...", end="", flush=True);
         self.upload(x_loader)
-        print("Uploaded x-loader.",end="")
-        # reopen the USB device so that we start talking to x_loader
-        # 
+        print("done.")
+        
+        # reopen the USB device so that we start talking to x-loader
         self._dev.close()
         
-        # IMPORTANT: give the 2nd stage a moment to orient itself;
+        # IMPORTANT: the 2nd stage needs a moment to orient itself;
         #            reopening too quickly makes things crash, and what "too" means fluctuates a little bit.
+        print("Reopening USB port", end="", flush=True)
         for i in range(3):
-           print(".", end="")
+           print(".", end="", flush=True);
            time.sleep(1)
-        print(" Now reopening")
         
         self._dev = usb_bulk(*self._addr)
-        notice = self._dev.read(4)
-        notice, = struct.unpack("I", notice) #< the comma is because struct returns a tuple of as many items as you tell it to expect
-        assert notice == 0xAABBCCDD, "Unexpected notification `%x` from what should be the 2nd stage bootloader, announcing itself ready to download more" % (notice)
+        print("done.")
         
+        # read x-loader "banner"
+        banner = self._dev.read(4)
+        banner, = struct.unpack("I", banner) #< the comma is because struct returns a tuple of as many items as you tell it to expect
+        assert banner == 0xAABBCCDD, "Unexpected banner `0x%X` from what should have been x-loader." % (notice)
+        
+        print('Received boot banner ("0x%X") from x-loader.' % (banner,))
+        
+        # We also need to ensure the battery is in before we continue, because U-Boot will shut down if it finds no battery.
+        # This could be rolled together
+        input("Insert battery and press enter to upload u-boot > ")
+        
+        print("Uploading u-boot... ", end="", flush=True);
         self.upload(u_boot)
+        print("done.", flush=True);
+        
         
         # close the device because there's nothing left to dooo
         self._dev.close()
@@ -211,7 +226,8 @@ if __name__ == '__main__':
     print("Waiting for omap44 device. Make sure you start with the battery out.")
     omap = OMAP4()
     
-    # do initial header connect (is this necessary? does the board *expect* this?)
+    # Read the chip ident. This isn't necessary for booting,
+    # but it's useful for debugging different peoples' results.
     #ASIC_ID = omap.id()
     #print("ASIC_ID:")
     #print(" ".join(hex(e) for e in ASIC_ID))
