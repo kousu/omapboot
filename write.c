@@ -20,7 +20,7 @@ int main() {
   //sleep(1);
   
   unsigned char buf[1<<10];
-  r = read(f, buf, 81);
+  r = read(f, buf, 82);
   if(r == -1) {
     perror("read");
     return -3;
