@@ -40,6 +40,7 @@ Then, you need to find or make some boot images. This is the most frustrating an
 You will probably use a fixed 2nd stage image, and vary your U-Boot images.
 You also need to ensure that the [images are signed for your device]().
 
+* make sure you have no other ugen(4) devices active (fixing this is on my TODO list)
 * pull all power from your device (i.e. take out the battery and unplug the USB cable)
 * plug in the usb cable with the battery still out. You should see a device attaching and detaching in [dmesg(8)](). It has USB vendor id 0x0451 (aka Texas Instruments) and product id 0xd00f or _____
 * run the program: `omapboot aboot.bin uboot.bin`

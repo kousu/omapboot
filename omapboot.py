@@ -24,9 +24,11 @@ import fcntl, struct
 import time
 
 
-class ugen:
+class bsd_ugen_bulk:
     """
     wrap BSD's ugen(4) device into a file-like python class.
+    
+    This class is only good for. If you try to use it on a non-bulk endpoint, the open() will fail.
     """
     
     # ioctl codes extracted by writing a C program that #include <dev/usb/usb.h> and printf'ing.
@@ -50,11 +52,14 @@ class ugen:
                 self._dev = open(device, "wb+", 0)
                 break
             except OSError:         # TODO: there are corner cases, like negative endpoints, that fall through the cracks in this liberal slurp
+                # this should really only consider "device not configured" a 'pass', and everything else an error
                 if block:
                     pass
                 else:
                     raise
             time.sleep(0.1)
+        
+        self._setShortTransfer()
     
     def read(self, len):
         return self._dev.read(len)
@@ -65,7 +70,7 @@ class ugen:
     def close(self):
         return self._dev.close()
     
-    def setShortTransfer(self, on=True):
+    def _setShortTransfer(self, on=True):
         """
         ugen(4) bulk endpoints behave essentially like SOCK_SEQPACKET sockets.
         However, by default, read()s *must* know the *exact* size of the packet
@@ -90,11 +95,14 @@ class ugen:
         fcntl.ioctl(self._dev, self.USB_SET_SHORT_XFER,
                     struct.pack("I", on)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
     
-    def setTimeout(self, timeout):
+    def _setTimeout(self, timeout):
         """
         """
         fcntl.ioctl(self._dev, self.USB_SET_TIMEOUT,
                     struct.pack("I", timeout)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
+
+
+usb_bulk = bsd_ugen_bulk #future-proofing that I'll probably never use
 
 
 
@@ -114,35 +122,43 @@ def readinto_io(self, target, chunksize=4096):
         target.write(chunk)
 # TODO: attach this to a suitably high-level class in the IO hierarchy
 
-class OMAP:
+
+
+
+class OMAP4:
     """
     implement and provide a nice API for the bootstrapping protocol that the omap44xx chips run in ROM if booted
     a) with USB plugged in
     b) and no battery
     
-    notable points:
-    * the protocol is little-endian *for all currently defined devices*, and it's probably not going to change now that TI's given up on it
     """
     
-    # n
     
-    usb_cls = ugen #future-proofing that I'll probably never use
+    # notable points:
+    # * the protocol is little-endian *for all currently defined devices*, (see: ti's flash[...])
+    #   and it's probably not going to change now that TI's given up on it
     
     messages = {"GET_ID": 0xF0030003, "BOOT": 0xF0030002}
     messages = {k: struct.pack("I", v) for k, v in messages.items()}
     locals().update(messages)
     del messages
+    
+    VENDOR = 0x0451
+    PRODUCT = 0xd00f #TODO: this needs to be a list
 
-    def __init__(self, device, endpoint, block=True):
+    def __init__(self, block=True):
         """
 
         """
-        # stash the USB address for boot()
+        #TODO: get (device, endpoint) from querying the OS's USB stack for (VENDOR, PRODUCT)
+        device, endpoint = 0, 1
+        
+        # stash the USB address for boot()'s use
+        # we assume that the same device won't be replugged during the duration of this program 
         self._addr = device, endpoint
         
         # open the USB device
-        self._dev = OMAP.usb_cls(device, endpoint)
-        self._dev.setShortTransfer() #since we don't necessarily know how long things will be
+        self._dev = usb_bulk(device, endpoint)
         
     def id(self):
         self._dev.write(self.GET_ID)
@@ -178,7 +194,7 @@ class OMAP:
            time.sleep(1)
         print(" Now reopening")
         
-        self._dev = OMAP.usb_cls(*self._addr)
+        self._dev = usb_bulk(*self._addr)
         notice = self._dev.read(4)
         notice, = struct.unpack("I", notice) #< the comma is because struct returns a tuple of as many items as you tell it to expect
         assert notice == 0xAABBCCDD, "Unexpected notification `%x` from what should be the 2nd stage bootloader, announcing itself ready to download more" % (notice)
@@ -193,7 +209,7 @@ class OMAP:
 if __name__ == '__main__':
     assert len(sys.argv) == 3, "usage: usbboot 2ndstage.bin 3rdstage.bin"
     print("Waiting for omap44 device. Make sure you start with the battery out.")
-    omap = OMAP(0, 1)
+    omap = OMAP4()
     
     # do initial header connect (is this necessary? does the board *expect* this?)
     #ASIC_ID = omap.id()
