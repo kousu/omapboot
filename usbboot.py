@@ -1,54 +1,28 @@
+#!/usr/bin/env python3
 """
 omap44xx USB pre-bootloader loader.
 
-omap44xx is the chip inside several recent LG Android phones. Look it up on Wikipedia: [....]
-This program lets you completely sidestep the bootloaders in NAND,
-   which should make it possible to do anything to
-    and this is the way the systems come installed from the factory.
+See README.md for usage.
 
-
-
-usage:
- pull all power from your device (i.e. take out the battery and unplug the USB cable)
- plug in the usb cable with the battery still out. You should see the device attaching and detaching in dmesg
- during (TODO: detect when the device is attached to avoid this awkwardness)
-
-WARNING: there's *signing* issues (? I think?? @wkpark can help with this)
- - the 1st stage knows signing keys which its manufacturer burned into it
- ..except if that's true, how is it possible for signing keys to get updated, as ping.se complained about with his HTC?
-
-depends on BSD's ugen(4) devices, so will *not* work on Linux, Windows or Mac
- (but actually it shouldn't be toooooo hard to abstract into a class hierarchy OMAP.{read,write}(),
- abstracting over {usb,serial}x{windows,linux,bsd,os x}, but if I'm going to do that I might as well just use libusb)
-
-Terminology:
- 1st stage: the burned-in ROM bootloader, which implements the protocol that this script speaks to
- 2nd stage: the small bootstrap bootloader whose usual job is to load the 3rd stage. also called "aboot" and "x-loader", for some reason.
- 3rd stage: the larger bootloader, always always some version of U-Boot, which knows how to boot Linux and/or NetBSD and/or etc
- 
-
-
- boot.img: a simply packed kernel+ramdisk (mkbootimg in the android sources can make this, and ping.se's unmkbootimg can tear it apart)
- recovery.img: an alternate boot.img which is meant to be similar; doesn't always actually do what it says it should.
- system.img: wh
- NAND: a type of solid state storage; all omap devices on the market come with a NAND chip where all data beyond the 1st stage is kept.
+TODO:
+* [ ] Loading is still flakey: rare occasions give I/O errors for no reason.
+* [ ] Factoring (of course)
+* [ ] Look up the USB MTU and set it as a default value on ugen.read(len=)
+* [ ] Tests
+* [ ] Documentation:
+  * [ ] how signing works
+  * [ ] photos to go with my instructions
+  * [ ] Collect a list of "good" boot images and/or instructions on how to build them
 
 """
+
+__author__ = "Nick Guenther"
+__email__ = "nguenthe@uwaterloo.ca"
+
 import sys, os
 import fcntl, struct
 import time
 
-
-
-
-
-# BEWARE:
-#  with ugen(4) bulk endpoints
-#  read()s *must* know the *exact* size they are expecting
-#  this is because USB is a packet based protocol and ugen does no buffering except for the current packet
-#  socket has recvmsg() for this case, where you can say "I don't care, just give me the *next* message"
-#  but read()/write() is a streaming API
-#  so the OpenBSD devs did the next best thing, which I *think* is: *if* a packet is buffered *then* force the user to request its exact size
 
 class ugen:
     """
@@ -93,19 +67,32 @@ class ugen:
     
     def setShortTransfer(self, on=True):
         """
-# But! There's a way out: USB_SET_SHORT_XFER allows overly-long reads to succeed
-#  which turns this into something very very close to SOCK_SEQPACKET, which is just fine with me.
-~        
-        setting SHORT_XFER allows you to *overbuffer*: you can set read() values that are much larger than you expect to make sure you get everything in a packet
-
-        underbuffering is still an I/O error though
-        Setting this
+        ugen(4) bulk endpoints behave essentially like SOCK_SEQPACKET sockets.
+        However, by default, read()s *must* know the *exact* size of the packet
+        they are expecting, or else the kernel gives an I/O error.
+        This is because USB is a packet based protocol and ugen does no buffering.
+        
+        socket has recvmsg() for this case, but unless ugen(4) gained a terrible
+        ioctl() API for packets, it has to fudge packet semantics into the
+        read()/write() streaming semantics. Personally, I think the BSD devs did
+        a very good job in squeezing the two together.
+        
+        But! There's almost a way out: USB_SET_SHORT_XFER allows overly-long
+        reads to succeed. So long as your read packets are not unbounded (and
+        technically they can't be because USB has upper limits), you can just
+        tell read() large numbers that you don't actually expect to see. This is
+        just like how with tcpdump you can't set the capture length to infinity
+        but 65536--the maximum transfer unit of ip--is just as good.
+        
+        If you actually need finer control than this you need to not use ugen(4).
+        Use libusb instead.
         """
-
         fcntl.ioctl(self._dev, self.USB_SET_SHORT_XFER,
                     struct.pack("I", on)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
     
     def setTimeout(self, timeout):
+        """
+        """
         fcntl.ioctl(self._dev, self.USB_SET_TIMEOUT,
                     struct.pack("I", timeout)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
 
