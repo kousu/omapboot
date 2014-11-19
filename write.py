@@ -6,26 +6,19 @@ messages = {k: struct.pack("I", v) for k, v in messages.items()}
 
 DEV = "/dev/ugen0.01"
 
-# in posix instead??
-f = os.open(DEV, os.O_RDWR) # | os.O_NONBLOCK)
-oops = os.write(f, messages["GET_ID"]) #<-- this is pissing the chip off. if it's commented out the read hangs. in, the read crashes, 
-# which must be because the chip is EPIPE'ing
-#print("wrote? %d bytes" % oops)
-print(f)
+# BEWARE:
+#  with ugen(4) bulk endpoints
+#  read()s *must* know the *exact* size they are expecting
+#  this is because USB is a packet based protocol and ugen does no buffering except for the current packet
+#  socket has recvmsg() for this case, where you can say "I don't care, just give me the *next* message"
+#  but read()/write() is a streaming API
+#  so the OpenBSD devs did the next best thing
 
-durp = os.read(f, 81)
-print("got:")
-print(repr(durp))
-
-
-raise SystemExit(0)
 
 f = open(DEV, "wb+", 0)
 oops = f.write(messages["GET_ID"])
-print("wrote? %d bytes" % oops)
-print(f)
 
-durp = f.read()
+durp = f.read(81)
 print("got:")
 print(repr(durp))
 
