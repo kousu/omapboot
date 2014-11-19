@@ -179,19 +179,32 @@ class OMAP:
         """
         self._dev.write(self.BOOT)
         self.upload(x_loader)
-        
+        print("Uploaded x-loader.",end="")
         # reopen the USB device so that we start talking to x_loader
         # 
-        self._dev.close()         
+        self._dev.close()
+        
+        # IMPORTANT: give the 2nd stage a moment to orient itself;
+        #            reopening too quickly makes things crash, and what "too" means fluctuates a little bit.
+        for i in range(3):
+           print(".", end="")
+           time.sleep(1)
+        print(" Now reopening")
+        
         self._dev = OMAP.usb_cls(*self._addr)
+        notice = self._dev.read(4)
+        notice, = struct.unpack("I", notice) #< the comma is because struct returns a tuple of as many items as you tell it to expect
+        assert notice == 0xAABBCCDD, "Unexpected notification `%x` from what should be the 2nd stage bootloader, announcing itself ready to download more" % (notice)
+        
         self.upload(u_boot)
         
-        # close the device because there's nothing left
+        # close the device because there's nothing left to dooo
         self._dev.close()
 
 
 
 if __name__ == '__main__':
+    assert len(sys.argv) == 3, "usage: usbboot 2ndstage.bin 3rdstage.bin"
     print("waiting for omap44 device")
     omap = OMAP(0, 1)
     
