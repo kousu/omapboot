@@ -1,5 +1,6 @@
 
 # compile with: cc --std=c99
+# only for OpenBSD!
 
 #include <stdio.h>
 #include <unistd.h>

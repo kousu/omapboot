@@ -166,6 +166,10 @@ class OMAP4:
         return id #TODO: parse this
     
     def upload(self, fname):
+        """
+        OMAP uses the world's simplest uploading protocol:
+         say how much then say the stuff.
+        """
         # content-length header
         size = os.stat(fname).st_size
         self._dev.write(struct.pack("I", size))
