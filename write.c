@@ -1,4 +1,6 @@
 
+# compile with: cc --std=c99
+
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
