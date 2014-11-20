@@ -72,8 +72,6 @@ class pyusb_bulk(usb_bulk):
     
     """
     
-    import usb as _usb
-    
     def __init__(self, vendor, product, endpoint=1, timeout=None):
         """
         
@@ -82,7 +80,7 @@ class pyusb_bulk(usb_bulk):
         """
         super().__init__(vendor, product, endpoint, timeout)
         
-        self._dev = self._usb.core.find(idVendor=vendor, idProduct=product)
+        self._dev = usb.core.find(idVendor=vendor, idProduct=product)
         if self._dev is None:
             raise OSError("Unable to find USB Device %04x:%04x" % (vendor, product))
         
@@ -206,11 +204,24 @@ class bsd_ugen_bulk(usb_bulk):
                     struct.pack("I", timeout)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
 
 
-# pick an API accord to what OS we find ourselves on
-# XXX this overwrites the Abstract Base Class!!!
-usb_bulk = pyusb_bulk # default
+
+APIs = []
+
 if "BSD" in os.uname().sysname:
-    usb_bulk = bsd_ugen_bulk
+    APIs.append(bsd_ugen_bulk)
+
+try:
+    import usb.core #old pyusbs are incompatible and do not have this module
+    # TODO: check version explicitly. 
+    APIs.append(pyusb_bulk)
+except ImportError:
+    pass
+
+if not APIs:
+    raise SystemExit("No USB API available.")
+    
+usb_bulk = APIs[0]
+
 
 
 def readinto_io(self, target, chunksize=4096):
