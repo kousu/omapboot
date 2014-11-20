@@ -66,6 +66,7 @@ class usb_bulk:
     def close(self):
         raise NotImplementedError
 
+# TODO: wrap in an 'if pyusb'
 class pyusb_bulk(usb_bulk):
     """
     
@@ -201,7 +202,7 @@ class bsd_ugen_bulk(usb_bulk):
         if timeout is None:
             #  "The value 0 is used to indicate that there is no timeout."
             timeout = 0 #
-        fcntl.ioctl(self._dev, self.USB_SET_TIMEOUT,
+        fcntl.ioctl(self._dev, self._USB_SET_TIMEOUT,
                     struct.pack("I", timeout)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
 
 
