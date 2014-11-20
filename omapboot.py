@@ -304,23 +304,14 @@ class OMAP4:
         self.upload(x_loader)
         print("done.")
         
-        # reopen the USB device so that we start talking to x-loader
-        #self._dev.close()
-        #self._dev._dev.reset()
-        
         # IMPORTANT: the 2nd stage needs a moment to orient itself;
-        #            reopening too quickly makes things crash, and what "too" means fluctuates a little bit.
-        print("Reopening USB port", end="", flush=True)
+        #            speaking to it too quickly makes things crash,
+        #            and what "too" means fluctuates a little bit.
+        print("Giving x-loader a chance to come up", end="", flush=True)
         for i in range(3):
-           print(".", end="", flush=True);
-           time.sleep(1)
-        
-        # XXX pyusb has 'Device.reset()'. Maybe it's better to provide that instead of close()? But then the object is less file-like...
-        # I could always write a reset() for ugen as well
-        # 
-        
-        #self._dev = usb_bulk(self.VENDOR, self.PRODUCT)
-        print("done.")
+            print(".", end="", flush=True);
+            time.sleep(1)
+        print()
         
         # read x-loader "banner"
         # By convention(?) this is only printed by x-loaders that are awaiting a u-boot download over USB
@@ -333,6 +324,9 @@ class OMAP4:
         
         # We also need to ensure the battery is in before we continue,
         # because U-Boot will shut down if it finds no battery.
+        # (this is the source of the "wait 4 seconds" myth on xda-developer.com's LG-p760 subforum:
+        #  if the usb boot doesn't wait for you, you need to time it so that you start with the battery
+        #  out so that the OMAP protocol is available, but you put the battery in before U-Boot comes up)
         # Possibly this could replace the sleep() above,
         # but it is useful to be able for the user to see the banner came through properly at the same time they are putting in the bbatter
         # Note: this assumes that all x-loaders you use with this program
