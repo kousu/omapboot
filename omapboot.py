@@ -15,10 +15,14 @@ TODO:
   * [ ] how signing works
   * [ ] photos to go with my instructions
   * [ ] Collect a list of "good" boot images and/or instructions on how to build them
-"""
 
-__author__ = "Nick Guenther"
-__email__ = "nguenthe@uwaterloo.ca"
+Credits:
+* Brian Swetland, for the original version <https://github.com/swetland/omap4boot>
+* Dmitry Pervushin, for clues <https://github.com/dmitry-pervushin/usbboot-omap4>
+* Won Kyu Park, the Windows version and the clues that finally put this together.
+* Nick Guenther, for python port.
+* Texas Instruments, for publishing their canon, even though omapflash is spaghetticode from hell <https://gforge.ti.com/gf/project/flash/>
+"""
 
 import sys, os
 import fcntl, struct
