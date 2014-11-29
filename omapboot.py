@@ -9,6 +9,7 @@ TODO:
 * [ ] Loading is still flakey: rare occasions give I/O errors for no reason.
   * [ ] Is there any way to contain the OMAP protocol in a class separate from the verrry useful interactive prints?
 * [ ] Factoring (of course)
+* [ ] Import C ioctl() codes reliably
 * [ ] Look up the USB MTU and set it as a default value on ugen.read(len=)
 * [ ] Tests
 * [ ] Documentation:
@@ -36,10 +37,12 @@ class bsd_ugen_bulk:
     This class is only good for. If you try to use it on a non-bulk endpoint, the open() will fail.
     """
     
-    # ioctl codes extracted by writing a C program that #include <dev/usb/usb.h> and printf'ing.
-    # NOT RELIABLE. MIGHT CHANGE BUILD TO BUILD. I don't know a good way. Googling suggests people have done things like ported the _IOW macro to python.
-    USB_SET_SHORT_XFER = 0x80045571 
-    USB_SET_TIMEOUT = 0x80045572
+    # DANGEROUS!
+    # these ioctl codes were extracted by writing a C program that
+    # essentially just did #include <dev/usb/usb.h> + printf().
+    # Googling suggests people have done things like ported the _IOW macro to python.
+    _USB_SET_SHORT_XFER = 0x80045571 
+    _USB_SET_TIMEOUT = 0x80045572
 
     def __init__(self, device, endpoint):
         """
@@ -82,18 +85,17 @@ class bsd_ugen_bulk:
         If you actually need finer control than this you need to not use ugen(4).
         Use libusb instead.
         """
-        fcntl.ioctl(self._dev, self.USB_SET_SHORT_XFER,
+        fcntl.ioctl(self._dev, self._USB_SET_SHORT_XFER,
                     struct.pack("I", on)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
     
     def _setTimeout(self, timeout):
         """
         """
-        fcntl.ioctl(self._dev, self.USB_SET_TIMEOUT,
+        fcntl.ioctl(self._dev, self._USB_SET_TIMEOUT,
                     struct.pack("I", timeout)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
 
 
-usb_bulk = bsd_ugen_bulk #future-proofing that I'll probably never use
-
+usb_bulk = bsd_ugen_bulk #choose which file-like USB class is the default
 
 
 def readinto_io(self, target, chunksize=4096):
