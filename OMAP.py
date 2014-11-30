@@ -1,10 +1,5 @@
 
 
-try:
-    from usbbulk import BulkUSB
-except ImportError:
-    raise SystemExit("No USB API available.")
-
 import os
 import struct
 
@@ -33,28 +28,13 @@ class OMAP4(BaseOMAP):
     locals().update(messages)
     del messages
     
-    # USB IDs:
-    VENDOR = 0x0451
-    PRODUCT = 0xd00f #TODO: this needs to be a list; XXX pyusb has hooks that make it easy to implement this... but openbsd doesn't
-
-    def __init__(self, block=True):
+    def __init__(self, port):
         """
         
         block: whether to fail if the device is not available, or wait for it to become available.
         """
         
-        if block:
-            # As far as I can tell, without kernel hooks (which are too
-            # platform-specific for this code) USB has no way to register
-            # event handlers. So I'm stuck with polling:
-            while True:
-                try:
-                    self._dev = BulkUSB(self.VENDOR, self.PRODUCT)
-                    break
-                except OSError:
-                    pass
-                time.sleep(0.1)
-         
+        self._dev = port
         
     def id(self):
         self._dev.write(self.GET_ID)

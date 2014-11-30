@@ -16,18 +16,42 @@ Credits:
 """
 
 import sys
+import time
+
+try:
+    from usbbulk import BulkUSB
+except ImportError:
+    raise SystemExit("No USB API available.")
 
 from OMAP import *
 
 if __name__ == '__main__':
     print("Waiting for omap44 device. Make sure you start with the battery out.")
-    omap = OMAP4()
+    
+    # USB IDs:
+    VENDOR = 0x0451
+    PRODUCT = 0xd00f #TODO: this needs to be a list; XXX pyusb has hooks that make it easy to implement this... but openbsd doesn't
+    
+    # As far as I can tell, without kernel hooks (which are too
+    # platform-specific for this code) USB has no way to register
+    # event handlers. So I'm stuck with polling:
+    while True:
+        try:
+            port = BulkUSB(VENDOR, PRODUCT)
+            break
+        except OSError:
+            pass
+        time.sleep(0.1)
+        
+    
+    omap = OMAP4(port)
     
     # Read the chip ident. This isn't necessary for booting,
     # but it's useful for debugging different peoples' results.
     ASIC_ID = omap.id()
     print("ASIC_ID:")
     print(" ".join(hex(e) for e in ASIC_ID))
+    #assert ASIC_ID["ID"][0] == 0x44, "This code expects an OMAP44xx device"
     
     # quick hack implementation of a command line arg
     # TODO: use the proper command parser, or at least getopt
