@@ -10,6 +10,7 @@ bootstrap process in these chips:
 * omap4430
 * omap????
 * ????????
+
 In theory, this lets you completely sidestep the system sitting
 on the NAND, making physical access == root access like it should be.
 
@@ -38,8 +39,8 @@ usage: usbboot [-a] 2ndstage.bin 3rdstage.bin
 ```
 
 By using 'develop', the script installed to your $PATH gets pointed at cloned folder,
-so you can tweak it directly (which you might need to do).
-You might need to edit your $PATH, though:
+so you can tweak it directly (which you might need to do). By using "--user" you don't need
+to worry about stomping on the rest of your system by accident, though you'll need to edit your $PATH:
 ```
 $ cat ~/.profile
 [...]
@@ -57,23 +58,27 @@ $ su
 # for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do dd if=/dev/block/mmcblk0p$i of=/sdcard/mmcblk0p$i.img; done
 ```
 and then copied the images off the SD card. This will probably take at least an hour to get everything.
+
 _This requires a rooted Android, of course. In theory having control of the bootloader should allow you to boot an image which just takes backups automagically, but I don't have that built yet_
+
 _Depending on the size of your partitions, you may need to do this in multiple steps_. 
 
+
 Then, you need to find or make some boot images. In general, this is the most frustrating and difficult part, and I cannot help you with it because every phone is slightly different. You also need to ensure that the [images are signed for your device](https://github.com/swetland/omap4boot/issues/8#issuecomment-64971642).
-* If you have taken backups, then two of the images should be 
-* [l9 p760 p765 p768 p769](http://forum.xda-developers.com/showthread.php?t=2292828)
-* [u-boot / omap4boot for P920/P720/P940 and its variant](http://forum.xda-developers.com/showthread.php?t=1971014)
+* If you have taken backups, then two of the images should be the two bootloaders. Fun fun fun!
+* xda: "[l9 p760 p765 p768 p769](http://forum.xda-developers.com/showthread.php?t=2292828)"
+* xda: "[u-boot / omap4boot for P920/P720/P940 and its variant](http://forum.xda-developers.com/showthread.php?t=1971014)"
 * @swetland's [omap4boot](https://github.com/swetland/omap4boot) will build generic images, but you need to get the u-boot it builds signed.
 * [possibly bad information on rolling your own](http://xda-university.com/as-a-developer/introduction-how-an-android-rom-is-built) from xda-university.
+
 The 2nd stage images are all pretty much identical, so once you find one that works you can just stick with it. It's the U-Boot images that are more interesting; some U-Boots have fastboot; some have S/W update mode; some cryptographically enforce content.
 
 With images in hand, you can boot your device on them by doing the following: 
 * Pull all power from your device (i.e. take out the battery and unplug the USB cable)
 * Plug in the usb cable with the battery still out. You should see a device attaching and detaching in dmesg(8) or in the Windows Device Manager.
-* run the program: `omapboot aboot.bin uboot.bin`
+* run the program:
 ```
-[kousu@birdlikeplant omapboot]$ python omapboot.py images/lelus/p940-aboot.2nd images/lelus/p940-u-boot_fastboot.bin 
+[kousu@birdlikeplant omapboot]$ omapboot images/lelus/p940-aboot.2nd images/lelus/p940-u-boot_fastboot.bin 
 Waiting for omap44 device. Make sure you start with the battery out.
 Uploading x-loader...done.
 Giving x-loader a chance to come up...
