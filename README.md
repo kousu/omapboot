@@ -23,7 +23,7 @@ Requirements
 
 * python3
 * either pyusb>=1.0.0 or {Open,Net,Free}BSD
-* a [smartphone with the chip](https://en.wikipedia.org/wiki/Texas_Instruments_OMAP) (or possibly a [pandaboard](https://en.wikipedia.org/wiki/Pandaboard))
+* a [smartphone with the chip](https://en.wikipedia.org/wiki/Texas_Instruments_OMAP#OMAP_4) (or possibly a [pandaboard](https://en.wikipedia.org/wiki/Pandaboard))
 
 Installation
 ------------
