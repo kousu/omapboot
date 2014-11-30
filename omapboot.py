@@ -2,6 +2,9 @@
 """
 omap44xx USB pre-bootloader loader.
 
+usage: omapboot [-a] aboot.bin uboot.bin
+ -a means "don't wait for user input to upload u-boot"
+
 See README.md for usage.
 
 TODO:
@@ -30,6 +33,7 @@ import fcntl, struct
 import time
 
 import warnings
+
 
 class usb_bulk:
     """
@@ -301,7 +305,7 @@ class OMAP4:
         # content
         readinto_io(open(fname, "rb"), self._dev)
     
-    def boot(self, x_loader, u_boot):
+    def boot(self, x_loader, u_boot, AUTOFLAG=False):
         """
         x_loader and u_boot should be filenames so that we can stat them for their filesizes
          note: you are not obligated to actually provide a u-boot instance. any raw ARM program can in theory be uploaded, so long as its suitable for just dumping into RAM and jumping into
@@ -342,7 +346,8 @@ class OMAP4:
         # but it is useful to be able for the user to see the banner came through properly at the same time they are putting in the bbatter
         # Note: this assumes that all x-loaders you use with this program
         # will be happy to wait indefinitely for you!
-        input("Insert battery and press enter to upload u-boot > ")
+        if not AUTOFLAG:
+            input("Insert battery and press enter to upload u-boot > ")
         
         print("Uploading u-boot... ", end="", flush=True);
         self.upload(u_boot)
@@ -355,7 +360,6 @@ class OMAP4:
 
 
 if __name__ == '__main__':
-    assert len(sys.argv) == 3, "usage: usbboot 2ndstage.bin 3rdstage.bin"
     print("Waiting for omap44 device. Make sure you start with the battery out.")
     omap = OMAP4()
     
@@ -365,4 +369,16 @@ if __name__ == '__main__':
     #print("ASIC_ID:")
     #print(" ".join(hex(e) for e in ASIC_ID))
     
-    omap.boot(sys.argv[1], sys.argv[2])
+    # quick hack implementation of a command line arg
+    # TODO: use the proper command parser, or at least getopt
+    # 
+    #this means "don't block at input() to let the user insert the battery"
+    # if you are doing rapid dev cycles, having to press two enters for each upload would get tedious
+    AUTOFLAG = False
+    if sys.argv[1] == "-a":
+        AUTOFLAG = True 
+        del sys.argv[1]
+    
+    assert len(sys.argv) == 3, "usage: usbboot [-a] 2ndstage.bin 3rdstage.bin"
+    
+    omap.boot(sys.argv[1], sys.argv[2], AUTOFLAG)
