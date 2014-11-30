@@ -9,16 +9,21 @@ TODO:
 * [ ] Loading is still flakey: rare occasions give I/O errors for no reason.
   * [ ] Is there any way to contain the OMAP protocol in a class separate from the verrry useful interactive prints?
 * [ ] Factoring (of course)
+* [ ] Import C ioctl() codes reliably
 * [ ] Look up the USB MTU and set it as a default value on ugen.read(len=)
 * [ ] Tests
 * [ ] Documentation:
   * [ ] how signing works
   * [ ] photos to go with my instructions
   * [ ] Collect a list of "good" boot images and/or instructions on how to build them
-"""
 
-__author__ = "Nick Guenther"
-__email__ = "nguenthe@uwaterloo.ca"
+Credits:
+* Brian Swetland, for the original version <https://github.com/swetland/omap4boot>
+* Dmitry Pervushin, for clues <https://github.com/dmitry-pervushin/usbboot-omap4>
+* Won Kyu Park, the Windows version and the clues that finally put this together.
+* Nick Guenther, for python port.
+* Texas Instruments, for publishing their canon, even though omapflash is spaghetticode from hell <https://gforge.ti.com/gf/project/flash/>
+"""
 
 import sys, os
 import fcntl, struct
@@ -130,10 +135,12 @@ class bsd_ugen_bulk(usb_bulk):
          i suppose i could call super().__init__ in the middle of things, but that's... weird
     """
     
-    # ioctl codes extracted by writing a C program that #include <dev/usb/usb.h> and printf'ing.
-    # NOT RELIABLE. MIGHT CHANGE BUILD TO BUILD. I don't know a good way. Googling suggests people have done things like ported the _IOW macro to python.
-    USB_SET_SHORT_XFER = 0x80045571 
-    USB_SET_TIMEOUT = 0x80045572
+    # DANGEROUS!
+    # these ioctl codes were extracted by writing a C program that
+    # essentially just did #include <dev/usb/usb.h> + printf().
+    # Googling suggests people have done things like ported the _IOW macro to python.
+    _USB_SET_SHORT_XFER = 0x80045571 
+    _USB_SET_TIMEOUT = 0x80045572
 
     def __init__(self, vendor, product, endpoint=1, timeout=None):
         """
@@ -185,7 +192,7 @@ class bsd_ugen_bulk(usb_bulk):
         If you actually need finer control than this you need to not use ugen(4).
         Use libusb instead.
         """
-        fcntl.ioctl(self._dev, self.USB_SET_SHORT_XFER,
+        fcntl.ioctl(self._dev, self._USB_SET_SHORT_XFER,
                     struct.pack("I", on)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
     
     def _setTimeout(self, timeout):
@@ -203,7 +210,7 @@ class bsd_ugen_bulk(usb_bulk):
 usb_bulk = pyusb_bulk # default
 if "BSD" in os.uname().sysname:
     usb_bulk = bsd_ugen_bulk
-    
+
 
 def readinto_io(self, target, chunksize=4096):
     """
