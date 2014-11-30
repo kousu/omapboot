@@ -1,5 +1,5 @@
-OMAP44xx bootloader-bootloader, for OpenBSD
-=========================================
+OMAP44xx bootloader-bootloader
+==============================
 
 OMAP is a brand of system-on-chips inside several recent Android phones.
 
@@ -22,8 +22,8 @@ Requirements
 -------------
 
 * python3
-* pyusb>=1.0.0 or {Open,Net,Free}BSD
-* a smartphone that runs on omap4[wikipedialink]()
+* either pyusb>=1.0.0 or {Open,Net,Free}BSD
+* a [smartphone with the chip](https://en.wikipedia.org/wiki/Texas_Instruments_OMAP) (or possibly a [pandaboard](https://en.wikipedia.org/wiki/Pandaboard))
 
 Installation
 ------------
@@ -119,6 +119,7 @@ References
 ----------
 
 * TI's [flash.exe](https://gforge.ti.com/gf/project/flash) and [poorly named wiki page](http://processors.wiki.ti.com/index.php/Flash_v1.0_User_Guide), particularly the file [pheriphalboot.c](https://gforge.ti.com/gf/project/flash/scmsvn/?action=browse&path=%2Ftrunk%2Fomapflash%2Fhost%2Fpheriphalboot.c) 
+* TI's [OMAP repo](http://omapzoom.org/), with code for all the chips(!)
 * [@swetland's omap4boot](https://github.com/swetland/omap4boot), helped out by [@wkpark](https://github.com/wkpark) and [@dimitry](https://github.com/dmitry-pervushin/usbboot-omap4)
 * [Kuisma's every-root guide](http://whiteboard.ping.se/Android/Rooting) (this is really just "how to install your own OS on an ARM system", with rooting an Android as an immediate corrollary).
 * [Android's code](https://android.googlesource.com/) -- did you know you can download snippets of Android's code? The entire project is huuuuge, but this site will package any subfolder for you at a click, and with a bit of ingenuity you can get most tools built.
