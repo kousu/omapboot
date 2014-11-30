@@ -48,9 +48,9 @@ class usb_bulk:
             if not (0 < timeout < 1<<32):
                 raise ValueError("Timeout must be an unsigned 32-bit integer if given.")
         
-        self.device = None
-        self.endpoint = endpoint
-        self.timeout = timeout
+        self.device = None #device *address* (a 8-bit integer)
+        self.endpoint = endpoint #endpoint address (a 4-bit integer)
+        self.timeout = timeout #either None or a 32-bit integer in milliseconds
     
     def read(self, len):
         raise NotImplementedError
@@ -81,35 +81,20 @@ class pyusb_bulk(usb_bulk):
             raise OSError("Unable to find USB Device %04x:%04x" % (vendor, product))
         
         #XXX does this need to "claim" the "interface"? it seems to work without doing that...
+        # --> No, we don't. Device.{read,write}() implicitly claim it every time.
         # the pyusb docs suggest that doing this is the correct first step
         # this isn't quite claiming, but maybe it's.. the same?
         self._dev.set_configuration()
         
-        # set up the in and out endpoints by bit-twiddling
-        # see http://www.beyondlogic.org/usbnutshell/usb5.shtml#EndpointDescriptors for a reference
-        # Endpoint Address
-        # Bits 0..3b Endpoint Number.
-        # Bits 4..6b Reserved. Set to Zero
-        # Bits 7 Direction 0 = Out, 1 = In (Ignored for Control Endpoints)
-        # It seems like this should be something handled by pyusb already.
-        print(self._dev)
-        
-        # motherfuckers
-        # it would be convenient to cache the Endpoints at init
-        # but the arg to Endpoint() is a "logical index" which is basically meaningless:
-        # it's the index of the endpoint in dev.configurations()[0].interfaces()[0].endpoints()
-        # rather than being, say, the USB endpoint ID or at least the bEndpointAddress
-        # TODO: patch pyusb so that you write Endpoint(device, endpoint_id, direction) instead
-        #
-        self._endpoint = endpoint
-        self._in = self._usb.core.Endpoint(self._dev, 0b10000000 | endpoint)
-        self._out = self._usb.core.Endpoint(self._dev, 0b00000000 | endpoint)
         
     def read(self, len):
         """
         returns a bytes object
         """
-        return self._in.read(len, timeout=self.timeout).tobytes()
+        # we need to turn bit 7 of the bEndpointAddress on to indicate 'IN'
+        # see http://www.beyondlogic.org/usbnutshell/usb5.shtml#EndpointDescriptors for a reference
+        return self._dev.read(0b10000000 | self.endpoint,
+                              len, timeout=self.timeout).tobytes()
         #pyusb works in Array objects. Which are totally the future,
         # but are inconsistent with bsd_ugen_bulk
         # and are more obscure than common python.
@@ -118,16 +103,14 @@ class pyusb_bulk(usb_bulk):
         """
         data should be a bytes object
         """
-        return self._out.write(data, timeout=self.timeout) #careful: pyusb returns array objects, but because of the magic of iterators and polymorphism, *hidden inside this call*, data can be a bytes
+        return self._dev.write(self.endpoint, data, timeout=self.timeout) #careful: pyusb returns array objects, but because of the magic of iterators and polymorphism, *hidden inside this call*, data can be a bytes
     
     def close(self):
-        del self._in
-        del self._out
         
         # *explicitly run the closing code*, which is in usb.core.Device.__del__(),
         # and then defang it so that the gc doesn't get pissy that we've done its work already
         self._dev.__del__()
-        self._dev.__del__ = lambda: pass
+        self._dev.__del__ = lambda: None
         # pyusb should use a context manager instead of mucking about with __del__s for this
         # __del__ is *not* the opposite of __init__ and it's *not* the same as a C++ dectructor
         del self._dev 
@@ -215,9 +198,12 @@ class bsd_ugen_bulk(usb_bulk):
                     struct.pack("I", timeout)) #<-- we have to 'struct.pack' because ioctl always expects a *pointer*, even if it's just a pointer to an int which it doesn't modify. python's ioctl handles this by taking bytes() objects, extracting them to C buffers temporarily, and returning the value of it after the C ioctl() gets done with it in a new bytes() object
 
 
-usb_bulk = bsd_ugen_bulk #future-proofing that I'll probably never use
-usb_bulk = pyusb_bulk
-
+# pick an API accord to what OS we find ourselves on
+# XXX this overwrites the Abstract Base Class!!!
+usb_bulk = pyusb_bulk # default
+if "BSD" in os.uname().sysname:
+    usb_bulk = bsd_ugen_bulk
+    
 
 def readinto_io(self, target, chunksize=4096):
     """
@@ -232,7 +218,8 @@ def readinto_io(self, target, chunksize=4096):
     while True:
         chunk = self.read(chunksize)
         if not chunk: break
-        target.write(chunk)
+        amt = target.write(chunk)
+        #print("wrote",amt,"bytes") #DEBUG
 # TODO: attach this to a suitably high-level class in the IO hierarchy
 
 
@@ -271,19 +258,12 @@ class OMAP4:
             # event handlers. So I'm stuck with polling:
             while True:
                 try:
-                    usb_bulk(self.VENDOR, self.PRODUCT).close()
+                    self._dev = usb_bulk(self.VENDOR, self.PRODUCT)
                     break
                 except OSError:
                     pass
                 time.sleep(0.1)
-        
-        # stash the USB address for boot()'s use
-        # we assume that the same device won't be replugged during the duration of this program 
-        self._addr = device, endpoint
-        
-        # open the USB device
-        
-        self._dev = usb_bulk(device, endpoint)
+         
         
     def id(self):
         self._dev.write(self.GET_ID)
@@ -317,7 +297,8 @@ class OMAP4:
         print("done.")
         
         # reopen the USB device so that we start talking to x-loader
-        self._dev.close()
+        #self._dev.close()
+        #self._dev._dev.reset()
         
         # IMPORTANT: the 2nd stage needs a moment to orient itself;
         #            reopening too quickly makes things crash, and what "too" means fluctuates a little bit.
@@ -326,18 +307,28 @@ class OMAP4:
            print(".", end="", flush=True);
            time.sleep(1)
         
-        self._dev = usb_bulk(*self._addr)
+        # XXX pyusb has 'Device.reset()'. Maybe it's better to provide that instead of close()? But then the object is less file-like...
+        # I could always write a reset() for ugen as well
+        # 
+        
+        #self._dev = usb_bulk(self.VENDOR, self.PRODUCT)
         print("done.")
         
         # read x-loader "banner"
+        # By convention(?) this is only printed by x-loaders that are awaiting a u-boot download over USB
+        # The NAND x-loader that came with your device won't print it, for example.
         banner = self._dev.read(4)
         banner, = struct.unpack("I", banner) #< the comma is because struct returns a tuple of as many items as you tell it to expect
         assert banner == 0xAABBCCDD, "Unexpected banner `0x%X` from what should have been x-loader." % (notice)
         
         print('Received boot banner ("0x%X") from x-loader.' % (banner,))
         
-        # We also need to ensure the battery is in before we continue, because U-Boot will shut down if it finds no battery.
-        # This could be rolled together
+        # We also need to ensure the battery is in before we continue,
+        # because U-Boot will shut down if it finds no battery.
+        # Possibly this could replace the sleep() above,
+        # but it is useful to be able for the user to see the banner came through properly at the same time they are putting in the bbatter
+        # Note: this assumes that all x-loaders you use with this program
+        # will be happy to wait indefinitely for you!
         input("Insert battery and press enter to upload u-boot > ")
         
         print("Uploading u-boot... ", end="", flush=True);
