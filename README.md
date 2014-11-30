@@ -1,5 +1,5 @@
-OMAP44xx bootloader-bootloader
-==============================
+OMAP44xx bootloader-loader
+==========================
 
 OMAP is a brand of system-on-chips inside several recent Android phones.
 
