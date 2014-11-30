@@ -17,7 +17,7 @@ on the NAND, making physical access == root access like it should be.
 I love getting comments and knowing I'm helping people,
 and also feedback on what's broken if I'm not.
 So please, don't be shy! Leave me an email or post in
-the issue tracker here.
+the issue tracker here, _especially if you discover a different chip model that this works for_.
 
 Requirements
 -------------
