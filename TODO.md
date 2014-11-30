@@ -20,3 +20,4 @@ TODO
 * [ ] Build Windows packages (pyfreeze?)
 * [ ] Build OS X packages
 * [ ] Find and build TI's awesome and stupidly powerful U-Boot version; `chip_upload` sounds like a supppper useful button.
+* [ ] Apparently libusb *does* have hotplug support: http://libusb.sourceforge.net/api-1.0/hotplug.html. Does that mean pyusb does too?

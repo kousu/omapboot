@@ -25,7 +25,23 @@ except ImportError:
 
 from OMAP import *
 
-if __name__ == '__main__':
+def main():
+    if not len(sys.argv) in [3,4]:
+        print("usage: usbboot [-a] 2ndstage.bin 3rdstage.bin")
+        raise SystemExit(1)
+    
+    # quick hack implementation of a command line arg
+    # TODO: use the proper command parser, or at least getopt
+    # 
+    #this means "don't block at input() to let the user insert the battery"
+    # if you are doing rapid dev cycles, having to press two enters for each upload would get tedious
+    AUTOFLAG = False
+    if sys.argv[1] == "-a":
+        AUTOFLAG = True 
+        del sys.argv[1]
+    
+    aboot, uboot = sys.argv[1:]
+    
     print("Waiting for omap44 device. Make sure you start with the battery out.")
     
     # USB IDs:
@@ -63,16 +79,7 @@ if __name__ == '__main__':
     #print(" ".join(hex(e) for e in ASIC_ID))
     #assert ASIC_ID["ID"][0] == 0x44, "This code expects an OMAP44xx device"
     
-    # quick hack implementation of a command line arg
-    # TODO: use the proper command parser, or at least getopt
-    # 
-    #this means "don't block at input() to let the user insert the battery"
-    # if you are doing rapid dev cycles, having to press two enters for each upload would get tedious
-    AUTOFLAG = False
-    if sys.argv[1] == "-a":
-        AUTOFLAG = True 
-        del sys.argv[1]
+    omap.boot(aboot, uboot, AUTOFLAG)
     
-    assert len(sys.argv) == 3, "usage: usbboot [-a] 2ndstage.bin 3rdstage.bin"
-    
-    omap.boot(sys.argv[1], sys.argv[2], AUTOFLAG)
+if __name__ == '__main__':
+    main()

@@ -25,6 +25,28 @@ Requirements
 * pyusb>=1.0.0 or {Open,Net,Free}BSD
 * a smartphone that runs on omap4[wikipedialink]()
 
+Installation
+------------
+
+This is not published yet, but for now you can install it with setuptools:
+```
+$ git clone https://github.com/kousu/omapboot
+$ cd omapboot
+$ python setup.py develop --user
+$ omapboot
+usage: usbboot [-a] 2ndstage.bin 3rdstage.bin
+```
+
+By using 'develop', the script installed to your $PATH gets pointed at cloned folder,
+so you can tweak it directly (which you might need to do).
+You might need to edit your $PATH, though:
+```
+$ cat ~/.profile
+[...]
+export PATH=~/.local/bin:$PATH
+[...]
+```
+
 Usage
 ------
 
@@ -73,6 +95,7 @@ There's a `-a` command line option which will skip the "Insert battery" line if 
 Troubleshooting
 ---------------
 
+* Check your cables and try again. This is hardware we're dealing with, afterall.
 * If you're on OpenBSD, make sure you have no other ugen(4) devices active (I'll fix this, but right now I just have to say sorry)
 * If the device is not responding at all, try uncommenting the ASIC ID lines to ensure you're talking to the right thing
 * If the device is dropping you after x-loader uploads, try tweaking `sleep(1)` in `OMAP.boot()` and file a bug report, please.
