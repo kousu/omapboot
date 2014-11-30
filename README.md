@@ -48,6 +48,8 @@ export PATH=~/.local/bin:$PATH
 [...]
 ```
 
+_(I don't know the equivalents on Windows. Sorry. I plan to make a Windows prepackaged .exe sometime)_
+
 Usage
 ------
 
