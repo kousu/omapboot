@@ -12,7 +12,11 @@ TODO
   * [ ] Collect a list of "good" boot images and/or instructions on how to build them
 * [ ] bsd_ugen_bulk:
   * [ ] Import C ioctl() codes reliably
+  * [ ] Write find() to match pyusb's
 * [ ] pyusb_bulk:
   * [ ] .close() causes future reads on the same device to break. 
 * [x] perhaps OMAP should take the communication port object as an argument (after all, it should work equally well over serial), and main() should be responsible for putting the two together
 * [ ] Write various serial port implementations that can be fed to OMAP
+* [ ] Build Windows packages (pyfreeze?)
+* [ ] Build OS X packages
+* [ ] Find and build TI's awesome and stupidly powerful U-Boot version; `chip_upload` sounds like a supppper useful button.

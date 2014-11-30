@@ -29,8 +29,18 @@ if __name__ == '__main__':
     print("Waiting for omap44 device. Make sure you start with the battery out.")
     
     # USB IDs:
+    #TODO: these need to be a list;
+    # pyusb has hooks that make it easy to implement this...
+    # but I'll have to write my own for ugen(4) doesn't
     VENDOR = 0x0451
-    PRODUCT = 0xd00f #TODO: this needs to be a list; XXX pyusb has hooks that make it easy to implement this... but openbsd doesn't
+    PRODUCT = 0xd00f 
+    # from TI's <https://gforge.ti.com/gf/project/flash>/trunk/omapflash/host/fastboot.c
+    # interestingly, they don't bother to use product IDs
+    #VENDOR = [0x18d1, 0x0451, 0x0bb4]
+    #CLASS = [0xFF]
+    #SUBCLASS = [0x42]
+    #PROTOCOL = [0x03]
+    
     
     # As far as I can tell, without kernel hooks (which are too
     # platform-specific for this code) USB has no way to register
@@ -49,8 +59,8 @@ if __name__ == '__main__':
     # Read the chip ident. This isn't necessary for booting,
     # but it's useful for debugging different peoples' results.
     ASIC_ID = omap.id()
-    print("ASIC_ID:")
-    print(" ".join(hex(e) for e in ASIC_ID))
+    #print("ASIC_ID:")
+    #print(" ".join(hex(e) for e in ASIC_ID))
     #assert ASIC_ID["ID"][0] == 0x44, "This code expects an OMAP44xx device"
     
     # quick hack implementation of a command line arg

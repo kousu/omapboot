@@ -15,14 +15,14 @@ try:
         def __init__(self, vendor, product, endpoint=1):
             """
             
-            timeout is in milliseconds; if it's 
-            the
             """
             super().__init__(vendor, product, endpoint)
             
             self._dev = usb.core.find(idVendor=vendor, idProduct=product)
             if self._dev is None:
                 raise OSError("Unable to find USB Device %04x:%04x" % (vendor, product))
+            
+            #print(self._dev) #DEBUG
             
             #XXX does this need to "claim" the "interface"? it seems to work without doing that...
             # the pyusb docs suggest that doing this is the correct first step

@@ -1,55 +1,84 @@
 OMAP44xx bootloader-bootloader, for OpenBSD
 =========================================
 
-omap44xx is a set of system-on-chip inside several recent Android phones.
+OMAP is a brand of system-on-chips inside several recent Android phones.
 
 At the lowest layer, it's pretty much just like any other embedded device,
 and in particular it needs to be bootstrapped at the factory.
-This program implements the low level protocol that starts the bootstrap process
-and thus, in theory, lets you completely sidestep the probably 
-locked-down system that came on the NAND.
+This program implements the lowest level protocol that starts the
+bootstrap process in these chips:
+* omap4430
+* omap????
+* ????????
+In theory, this lets you completely sidestep the system sitting
+on the NAND, making physical access == root access like it should be.
 
 I love getting comments and knowing I'm helping people,
 and also feedback on what's broken if I'm not.
-So please, don't be shy, you can bug me by email or in
+So please, don't be shy! Leave me an email or post in
 the issue tracker here.
 
 Requirements
 -------------
 
-* {Open,Net,Free}BSD
 * python3
+* pyusb>=1.0.0 or {Open,Net,Free}BSD
 * a smartphone that runs on omap4[wikipedialink]()
-
-I wrote this on BSD because, apparently in contrast to every other OS ever,
-when BSD sees a USB device it doesn't recognize, it just you talk to as if
-it were any other unix device file. I could port this to other systems,
-but it overlaps with [omap4boot/usbboot.c]() which is supposed to run on Windows and Linux.
-
 
 Usage
 ------
 
-
-If you are able, **MAKE BACKUPS**. For example, with root, I took backups of all my NAND partitions like so:
+Before anything, **MAKE BACKUPS**. I took backups of all my NAND partitions like so:
 ```
- [ ... ]
+$ adb shell
+$ su
+# for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do dd if=/dev/block/mmcblk0p$i of=/sdcard/mmcblk0p$i.img; done
 ```
+and then copied the images off the SD card. This will probably take at least an hour to get everything.
+_This requires a rooted Android, of course. In theory having control of the bootloader should allow you to boot an image which just takes backups automagically, but I don't have that built yet_
+_Depending on the size of your partitions, you may need to do this in multiple steps_. 
 
-Then, you need to find or make some boot images. This is the most frustrating and difficult part, and I cannot help you with it because every phone is slightly different. Poke around [xda].
-You will probably use a fixed 2nd stage image, and vary your U-Boot images.
-You also need to ensure that the [images are signed for your device]().
+Then, you need to find or make some boot images. In general, this is the most frustrating and difficult part, and I cannot help you with it because every phone is slightly different. You also need to ensure that the [images are signed for your device](https://github.com/swetland/omap4boot/issues/8#issuecomment-64971642).
+* If you have taken backups, then two of the images should be 
+* [l9 p760 p765 p768 p769](http://forum.xda-developers.com/showthread.php?t=2292828)
+* [u-boot / omap4boot for P920/P720/P940 and its variant](http://forum.xda-developers.com/showthread.php?t=1971014)
+* @swetland's [omap4boot](https://github.com/swetland/omap4boot) will build generic images, but you need to get the u-boot it builds signed.
+* [possibly bad information on rolling your own](http://xda-university.com/as-a-developer/introduction-how-an-android-rom-is-built) from xda-university.
+The 2nd stage images are all pretty much identical, so once you find one that works you can just stick with it. It's the U-Boot images that are more interesting; some U-Boots have fastboot; some have S/W update mode; some cryptographically enforce content.
 
-* make sure you have no other ugen(4) devices active (fixing this is on my TODO list)
-* pull all power from your device (i.e. take out the battery and unplug the USB cable)
-* plug in the usb cable with the battery still out. You should see a device attaching and detaching in [dmesg(8)](). It has USB vendor id 0x0451 (aka Texas Instruments) and product id 0xd00f or _____
+With images in hand, you can boot your device on them by doing the following: 
+* Pull all power from your device (i.e. take out the battery and unplug the USB cable)
+* Plug in the usb cable with the battery still out. You should see a device attaching and detaching in dmesg(8) or in the Windows Device Manager.
 * run the program: `omapboot aboot.bin uboot.bin`
-* the next time the device attaches, omapboot will catch it and boot the images.
-* from there, you can go on and poke at your device through U-Boot: depending on the build you have, you have access to a USB serial console command prompt and/or fastboot. If you're sharp, you can roll your own u-boot images to do whatever you need.
+```
+[kousu@birdlikeplant omapboot]$ python omapboot.py images/lelus/p940-aboot.2nd images/lelus/p940-u-boot_fastboot.bin 
+Waiting for omap44 device. Make sure you start with the battery out.
+Uploading x-loader...done.
+Giving x-loader a chance to come up...
+Received boot banner ("0xAABBCCDD") from x-loader.
+Insert battery and press enter to upload u-boot > [ENTER]
+Uploading u-boot... done.
+```
+* Then you should be able to poke at your device with the [fastboot protocol]()
+```
+[kousu@birdlikeplant omapboot]$ fastboot getvar version
+version: 0.5
+finished. total time: 0.000s
+```
+
+You could also roll your own u-boot images to do whatever you need. 
+
+There's a `-a` command line option which will skip the "Insert battery" line if you think you can be fast enough with your hands. (TODO: document this better).
+
+Troubleshooting
+---------------
+
+* If you're on OpenBSD, make sure you have no other ugen(4) devices active (I'll fix this, but right now I just have to say sorry)
+* If the device is not responding at all, try uncommenting the ASIC ID lines to ensure you're talking to the right thing
+* If the device is dropping you after x-loader uploads, try tweaking `sleep(1)` in `OMAP.boot()` and file a bug report, please.
 
 Terminology
 -----------
-
 
 * <u>NAND<u>: a type of solid state storage; all omap devices on the market come with a NAND chip where all data beyond the 1st stage is kept.
 * <u>1st stage</u>: the very lowest level bootloader, at the same level as the BIOS in a PC, which implements the protocol that this script speaks to. This is burned-in to the ROM; it does not sit on a NAND partition.
@@ -63,13 +92,11 @@ Terminology
 * <u>userdata.img</u>: like /home. But unlike /home, at the Android layer, apps get separate folders and cannot see each other's area (TODO: link a good explanation of how android jailing works). Some devices set aside a subfolder here for an "internal SD card", which apps _can_ share.
 
 
-
 References
 ----------
 
-* [TI's flash.exe]() and [wiki pages]()
-* [@swetland's omap4boot](), helped out by [@wkpark]() and [@dimitry]()
-* XDA: 
-* [ugen(4)]()
-* [ping's every-root guide]() (this is really just "how to install your own OS on an ARM system", with rooting an Android as an immediate corrollary).
-* [] (did you know you can download pieces of Android's code? This site will package any subfolder for you at a click)
+* TI's [flash.exe](https://gforge.ti.com/gf/project/flash) and [poorly named wiki page](http://processors.wiki.ti.com/index.php/Flash_v1.0_User_Guide), particularly the file [pheriphalboot.c](https://gforge.ti.com/gf/project/flash/scmsvn/?action=browse&path=%2Ftrunk%2Fomapflash%2Fhost%2Fpheriphalboot.c) 
+* [@swetland's omap4boot](https://github.com/swetland/omap4boot), helped out by [@wkpark](https://github.com/wkpark) and [@dimitry](https://github.com/dmitry-pervushin/usbboot-omap4)
+* [Kuisma's every-root guide](http://whiteboard.ping.se/Android/Rooting) (this is really just "how to install your own OS on an ARM system", with rooting an Android as an immediate corrollary).
+* [Android's code](https://android.googlesource.com/) -- did you know you can download snippets of Android's code? The entire project is huuuuge, but this site will package any subfolder for you at a click, and with a bit of ingenuity you can get most tools built.
+* I would link XDA, but there's nothing decent there that isn't wkpark's stuff.

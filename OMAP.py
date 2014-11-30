@@ -20,6 +20,7 @@ class OMAP4(BaseOMAP):
     
     
     # notable points:
+    # * the reference I've been working from, besides guesswork, is <https://gforge.ti.com/gf/project/flash>/trunk/omapflash/host/pheriphalboot.c
     # * the protocol is little-endian *for all currently defined devices*, (see: ti's flash[...])
     #   and it's probably not going to change now that TI's given up on it
     
@@ -30,8 +31,8 @@ class OMAP4(BaseOMAP):
     
     def __init__(self, port):
         """
-        
-        block: whether to fail if the device is not available, or wait for it to become available.
+        port: a file-like object in read/write mode which
+              should be connected to an OMAP device.
         """
         
         self._dev = port
@@ -43,6 +44,7 @@ class OMAP4(BaseOMAP):
     
     def upload(self, fname):
         """
+        
         OMAP uses the world's simplest uploading protocol:
          say how much then say the stuff.
         """

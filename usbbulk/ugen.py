@@ -19,10 +19,6 @@ if "BSD" in os.uname().sysname:
         
         Online reference: http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man4/ugen.4?query=ugen
         
-        TODO:
-        * [ ] make .timeout() a property that calls ._setTimeout();
-             this is complicated by this chicken-or-egg: self._dev needs to be exist to run _setTimeout, but self.timeout is set by super().__init__() before that happens
-             i suppose i could call super().__init__ in the middle of things, but that's... weird
         """
         
         # DANGEROUS!
@@ -35,8 +31,8 @@ if "BSD" in os.uname().sysname:
         def __init__(self, vendor, product, endpoint=1):
             """
             
-            endpoint defaults to '1' because that's the most common endpoint to have a bulk interface.
-            TODO: poll ugens for their vendor:device id so that the API can be "open such and such device"
+            endpoint defaults to '1' because that's the
+            most common endpoint to have a bulk interface.
             """
             super().__init__(vendor, product, endpoint)
             
