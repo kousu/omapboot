@@ -147,11 +147,14 @@ class OMAP4(BaseOMAP):
                     print("CRC0:", tohex(CRC0))
                     print("CRC0:", tohex(CRC1))
         
+        print()
         print("recevied ASIC ID banner:")
         parse_ASIC_blocks(ASIC)
 
         # upload 2nd stage (x-loader) via the 1st stage
         self._dev.write(self.BOOT)
+        
+        print()
         print("Uploading x-loader...", end="", flush=True);
         self.upload(x_loader)
         print("done.")
