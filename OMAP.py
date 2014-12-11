@@ -7,6 +7,7 @@ from array import array
 # monkey-patch array to prettyprint a *byte* array in hex
 def tohex(self):
     assert self.typecode == "B", "Only valid on byte arrays"
+    # XXX does this handle endianness properly?
     return "0x"+str.join('', ("%02X" % e for e in self))
 #array.tohex = tohex; del tohex #darn. array is a C extension type so I can't do this because python's a jerk.
 
@@ -137,7 +138,7 @@ class OMAP4(BaseOMAP):
                 elif type == 19:
                     # unknown and undocumented
                     assert len(data) == 1
-                    print("Undocumented ID subblock 18: %02X"  % (data[0],))
+                    print("Underdocumented ASIC subblock #18: %02X"  % (data[0],))
                 elif type == 20:
                     assert len(data) == 32
                     print("MPKH:", tohex(data))
