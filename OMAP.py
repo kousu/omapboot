@@ -35,7 +35,36 @@ class OMAP4(BaseOMAP):
     # * the protocol is little-endian *for all currently defined devices*, (see: ti's flash[...])
     #   and it's probably not going to change now that TI's given up on it
     
-    messages = {"GET_ID": 0xF0030003, "BOOT": 0xF0030002}
+    messages = {#commands the OMAP ROM understands during "peripheral boot" mode, which pops up if you cold-boot with USB active
+                # (in practice this means: if you plug in the USB cable with the battery out;
+                #  I guess the OMAP chip is low-level awake whenever the battery is in)
+                # Reference: TI's OMAP4430 TRM, Table 27-21 "Booting Messages", page 5652.
+                
+                # get the ASIC ID
+                "GET_ID": 0xF0030003,
+                
+                # continue peripheral booting -- that is, the next 4 bytes be a uint32 size followed by packets giving a boot image of that size
+                "BOOT": 0xF0030002,
+                
+                # various alternate boot options (sort of like an F12 menu, but for phones)
+                # y.m.m.v. with these
+                "BOOT_VOID": 0xF0030006,
+                "BOOT_XIP": 0xF0030106,   #"eXecute-In-Place" memory, like RAM or NOR flash
+                "BOOT_XIPWAIT": 0xF0030206, #XIP memory with wait-signal monitoring (I have no idea what this is)
+                "BOOT_NAND": 0xF0030306,  # try to boot off of wired in NAND
+                "BOOT_OneNAND": 0xF0030406,  # a different sort of NAND??
+                "BOOT_MMC1": 0xF0030506,  #boot off of whatever is wired to MMC1 (which is probably NAND?)
+                "BOOT_MMC2_1": 0xF0030606,# ditto, but for MMC2, subpath 1
+                "BOOT_MMC2_2": 0xF0030706,
+                "BOOT_EMFI": 0xF0030806,  # ???
+                
+                "BOOT_UART3": 0xF0034306, # ??? the docs mention UART3 as being a special UART.
+                "BOOT_USB": 0xF0034506,
+                "BOOT_USB": 0xF0034606,
+                
+                # stop peripheral booting and go to the next default option
+                "BOOT_NEXT": 0xFFFFFFFF
+                }
     messages = {k: struct.pack("I", v) for k, v in messages.items()}
     locals().update(messages)
     del messages
